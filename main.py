@@ -13,23 +13,62 @@ n_modes = 4
 k_order = 2
 
 dists = []
-for j in range(20, 180, 40):
-    test_matrix = Greedy().get_S_matrix(n_modes, j, k_order, marginals)
+for j in range(20, 140, 40):
+    test_matrix = Greedy().get_S_matrix(n_modes, j, k_order, marginals)[0]
     dist_j = Greedy().get_k_mode_marginal_distances_of_greedy_matrix(test_matrix, k_order, marginals)
     dists.append(dist_j)
 
 marginal_index = np.arange(0, len(dists[0]), 1)
 
-with plt.style.context(['science']):
-    for i in range(len(dists)):
-        plt.plot(marginal_index, dists[i], label=f'L = {20 + 40*i}')
+plt.figure()
+for i in range(len(dists)):
+    plt.plot(marginal_index, dists[i], label=f'L = {20 + 40*i}')
+plt.xlabel('Submatrix index')
+plt.ylabel('Variation distance')
+plt.xticks(marginal_index)
+plt.legend()
+#plt.show()
+#plt.savefig('variation_dist.png', dpi=400)
 
-    plt.xlabel('Marginal index')
-    plt.ylabel('Variation distance')
-    plt.xticks(marginal_index)
-    plt.legend()
-    #plt.show()
-    #plt.savefig('variation_dist.png', dpi=400)
+L = 20
+distances = Greedy().get_S_matrix(n_modes, L, k_order, marginals)[1]
+iteration_number = list(range(len(distances[0])))
+
+plt.figure()
+plt.title(f'L = {L}')
+for i, d in enumerate(distances):
+    plt.plot(iteration_number, d, label=f'Submatrix index = {i}')
+plt.xlabel('Iteration number')
+plt.ylabel('Variation distance')
+plt.xticks(np.arange(0, L, L/5))
+plt.legend()
+
+L = 60
+distances = Greedy().get_S_matrix(n_modes, L, k_order, marginals)[1]
+iteration_number = list(range(len(distances[0])))
+
+plt.figure()
+plt.title(f'L = {L}')
+for i, d in enumerate(distances):
+    plt.plot(iteration_number, d, label=f'Submatrix index = {i}')
+plt.xlabel('Iteration number')
+plt.ylabel('Variation distance')
+plt.xticks(np.arange(0, L, L/5))
+plt.legend()
+
+L = 100
+distances = Greedy().get_S_matrix(n_modes, L, k_order, marginals)[1]
+iteration_number = list(range(len(distances[0])))
+
+plt.figure()
+plt.title(f'L = {L}')
+for i, d in enumerate(distances):
+    plt.plot(iteration_number, d, label=f'Submatrix index = {i}')
+plt.xlabel('Iteration number')
+plt.ylabel('Variation distance')
+plt.xticks(np.arange(0, L, L/5))
+plt.legend()
+plt.show()
 
 r_k = [
 1.6518433645720738,
@@ -66,5 +105,4 @@ T = T_re + T_im * 1j
 T = T.T
 
 ideal_matrix = unitary_group.rvs(50)
-
-print(Marginal().get_marginal_distribution([1,2], ideal_matrix, r_k))
+#print(Marginal().get_marginal_distribution([1,2], ideal_matrix, r_k))

@@ -1,4 +1,5 @@
-from typing import Tuple
+import copy
+from typing import List, Tuple
 import numpy as np
 from collections import Counter
 from utils import bitstring_to_int, int_to_padded_bitstring
@@ -37,13 +38,13 @@ class Greedy():
         ideal_marginal: np.ndarray
     ) -> np.ndarray:
         """Returns the variation distance between the ideal marginal and the
-        empirical marginal at the position specified by the bit_indices input
-        variable in the input matrix."""
+        empirical marginal. The empirical marginal is calculated from all the
+        bitstrings up to the position specified by the bit_indices (including
+        this position)."""
         row_index = bit_indices[0][0]
-        assert (row_index > 0)
         k_order = len(bit_indices)
         column_inds = [bit_indices[j][1] for j in range(k_order)]
-        submatrix = matrix[0 : row_index, column_inds]
+        submatrix = matrix[0 : row_index + 1, column_inds]
         empirical_distr = self._get_distribution_from_outcomes(submatrix)
         variation_distance = ideal_marginal - empirical_distr
         return variation_distance
@@ -55,13 +56,16 @@ class Greedy():
         ideal_distr: np.ndarray
     ) -> int:
         """Returns the optimal bitstring in decimal for the column with index = 0."""
-        row_index = bit_indices[0][0]
-        if row_index == 0:
-            max_ind = np.argmax(ideal_distr)
-        else:
-            variation_distance = self._get_marginal_variation_dist(S_matrix, bit_indices, ideal_distr)
-            max_ind = np.argmax(variation_distance)
-        return max_ind
+        dists: List = []
+        for j in range(2**len(bit_indices)):
+            S_matrix_copy = copy.deepcopy(S_matrix)
+            bitstring = int_to_padded_bitstring(j, len(bit_indices))
+            for i, bit in enumerate(bitstring):
+                S_matrix_copy[bit_indices[i]] = bit
+            variation_distance = 0.5*np.sum(np.abs(self._get_marginal_variation_dist(S_matrix_copy, bit_indices, ideal_distr)))
+            dists.append(variation_distance)
+        optimal_ind = np.argmin(dists)
+        return optimal_ind
     
     def _get_optimal_bitstring_in_decimal_for_column(
         self,
@@ -70,16 +74,19 @@ class Greedy():
         ideal_distr: np.ndarray
     ) -> int:
         """Returns the optimal bitstring in decimal for a column with index > 0."""
-        row_index = bit_indices[0][0]
         k_order = len(bit_indices)
         fixed_bits = tuple([S_matrix[bit_indices[i]] for i in range(k_order - 1)])
         possible_inds = [bitstring_to_int(fixed_bits + (0,)), bitstring_to_int(fixed_bits + (1,))]
-        if row_index == 0:
-            max_ind = possible_inds[np.argmax(ideal_distr[possible_inds[0]:possible_inds[1] + 1])]
-        else:
-            variation_distance = self._get_marginal_variation_dist(S_matrix, bit_indices, ideal_distr)
-            max_ind = possible_inds[np.argmax(variation_distance[possible_inds[0]:possible_inds[1] + 1])]
-        return max_ind
+        dists: List = []
+        for j in possible_inds:
+            S_matrix_copy = copy.deepcopy(S_matrix)
+            bitstring = int_to_padded_bitstring(j, len(bit_indices))
+            for i, bit in enumerate(bitstring):
+                S_matrix_copy[bit_indices[i]] = bit
+            variation_distance = 0.5*np.sum(np.abs(self._get_marginal_variation_dist(S_matrix_copy, bit_indices, ideal_distr)))
+            dists.append(variation_distance)
+        optimal_ind = possible_inds[np.argmin(dists)]
+        return optimal_ind
     
     def _add_optimal_bitstring(
         self, 
@@ -94,13 +101,12 @@ class Greedy():
         and the ideal distribution is the highest (where we need to add the
         highest amount of probability mass)."""
         if iteration_number == 0:
-            max_ind = self._get_optimal_bitstring_in_decimal_for_first_column(S_matrix, bit_indices, ideal_distr)
+            optimal_ind = self._get_optimal_bitstring_in_decimal_for_first_column(S_matrix, bit_indices, ideal_distr)
         else:
-            max_ind = self._get_optimal_bitstring_in_decimal_for_column(S_matrix, bit_indices, ideal_distr)
-        bitstring = int_to_padded_bitstring(max_ind, len(bit_indices))
+            optimal_ind = self._get_optimal_bitstring_in_decimal_for_column(S_matrix, bit_indices, ideal_distr)
+        bitstring = int_to_padded_bitstring(optimal_ind, len(bit_indices))
         for i, bit in enumerate(bitstring):
             S_matrix[bit_indices[i]] = bit
-
 
     def get_S_matrix(
         self, 
@@ -123,12 +129,17 @@ class Greedy():
             assert (len(marginal) == 2**k_order)
             assert np.allclose(np.sum(marginal), 1, atol=1e-12)
         S_matrix = np.empty((n_rows, n_modes))
+        dists: List = []
         for j in range(n_modes - 1):
             submatrix_inds = self._get_submatrix_indices(S_matrix.shape, k_order, j)
+            dists_j: List = []
             for i in range(n_rows):
                 self._add_optimal_bitstring(S_matrix, submatrix_inds[i], marginals[j], j)
+                dist = 0.5*np.sum(np.abs(self._get_marginal_variation_dist(S_matrix, submatrix_inds[i], marginals[j])))
+                dists_j.append(dist)
+            dists.append(dists_j)
             np.random.shuffle(S_matrix)
-        return S_matrix
+        return S_matrix, dists
 
     def get_k_mode_marginal_distances_of_greedy_matrix(
         self, 
