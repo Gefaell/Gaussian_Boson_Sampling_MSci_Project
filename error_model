@@ -1,6 +1,8 @@
 #%%
 import numpy as np
 from scipy.stats import unitary_group
+import strawberryfields as sf
+from strawberryfields.ops import *
 
 def is_unitary(matrix):
     conjugate_transpose = matrix.conjugate().transpose()
@@ -23,3 +25,41 @@ print(A)
 deviated_arr = apply_random_deviations(A, 0.1)
 
 print(deviated_arr)
+#%% 
+
+U = unitary_group.rvs(4)
+print(U)
+#%%
+boson_sampling = sf.Program(4)
+eng = sf.Engine("fock", backend_options={"cutoff_dim": 6})
+
+with boson_sampling.context as q:
+    # prepare the input fock states
+    Fock(1) | q[0]
+    Fock(1) | q[1]
+    Vac     | q[2]
+    Fock(1) | q[3]
+
+    Interferometer(U) | q
+
+
+boson_sampling.compile(compiler="fock").print()
+circuit = boson_sampling.compile(compiler = 'fock')
+
+
+
+params = boson_sampling.compile(compiler="fock").params()
+print(params)
+
+loss_sampling = sf.Program(len(U))
+
+with loss_sampling.context as q:
+    circuit
+    MeasureFock() | q[0]
+
+params_new = loss_sampling.draw_circuit()
+
+results = eng.run(loss_sampling)
+# print(results.samples[0][0])
+
+
