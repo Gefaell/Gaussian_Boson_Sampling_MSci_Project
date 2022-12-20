@@ -84,11 +84,8 @@ class Greedy():
             bitstring = int_to_padded_bitstring(j, len(bit_indices))
             for i, bit in enumerate(bitstring):
                 S_matrix_copy[bit_indices[i]] = bit
-            column_inds = ideal_distrs[0][0]
-            marginal = ideal_distrs[0][1]
-            indices = [(row_index,) + (ind,) for ind in column_inds]
-            variation_distance = 0.5*np.sum(np.abs(self._get_marginal_variation_dist(S_matrix_copy, indices, marginal)))
-            for i in range(1, len(ideal_distrs)):
+            variation_distance = 0.0
+            for i in range(len(ideal_distrs)):
                 column_inds = ideal_distrs[i][0]
                 marginal = ideal_distrs[i][1]
                 indices = [(row_index,) + (ind,) for ind in column_inds]
