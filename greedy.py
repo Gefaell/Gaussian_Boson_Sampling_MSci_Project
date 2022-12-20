@@ -136,7 +136,7 @@ class Greedy():
         preceded by the indices of their corresponding columns
         e.g. for a k-th order approximation, the array containing the
         marginals has j subarrays. Each of these subarrays has two elements,
-        a tuple with the column/mode indices and the marginal distribution.
+        a list with the column/mode indices and the marginal distribution.
         """
         assert (len(marginals) == n_modes - 1)
         for data in marginals:
