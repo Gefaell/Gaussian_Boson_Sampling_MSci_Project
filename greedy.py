@@ -31,7 +31,7 @@ class Greedy():
         return distribution
 
 
-    def _get_marginal_distribution_from_outcomes(self, marginals, samples: np.ndarry) -> np.ndarray:
+    def _get_marginal_distribution_from_outcomes(self, marginals, samples: np.ndarray) -> np.ndarray:
         '''Turns list of outcomes (bitstrings) into empiral marginal distributions of input marginals'''
         reduced_outcomes = samples[:,marginals]
         return self._get_distribution_from_outcomes(reduced_outcomes)

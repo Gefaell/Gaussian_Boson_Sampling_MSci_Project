@@ -3,6 +3,8 @@ from GBS_marginals import Marginal
 import pandas as pd
 
 
+#%%
+
 r_k = [
 1.6518433645720738,
 1.687136454610338,
@@ -32,9 +34,13 @@ r_k = [
 
 #r_k = np.array(r_k + r_k)
 
+
 T_re = pd.read_excel('matrix_re.xlsx', header = None).to_numpy()
 T_im = pd.read_excel('matrix_im.xlsx', header = None).to_numpy()
 T = T_re + T_im * 1j
 T = T.T
-
 # %%
+marg = Marginal()
+testprobs = marg.get_marginal_distribution([0,10], T, r_k)
+print(testprobs)
+print(sum(testprobs))
