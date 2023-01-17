@@ -30,6 +30,8 @@ print(deviated_arr)
 U = unitary_group.rvs(4)
 print(U)
 #%%
+A = array([ 0.4045-0.9146j, -0.2741-0.9617j, -0.3038+0.9527j, -0.7141-0.7001j])
+ 
 boson_sampling = sf.Program(4)
 eng = sf.Engine("fock", backend_options={"cutoff_dim": 6})
 
@@ -42,6 +44,15 @@ with boson_sampling.context as q:
 
     Interferometer(U) | q
 
+boson_sampling.compile(compiler="fock")
+c = boson_sampling.circuit
+f = boson_sampling.free_params
+print(c)
+for i in c:
+    print(i)
+
+
+#%%
 
 boson_sampling.compile(compiler="fock").print()
 
@@ -49,15 +60,18 @@ boson_sampling.compile(compiler="fock").print()
 circuit = boson_sampling.compile(compiler = 'fock')
 
 
+#%%
 
-params = boson_sampling.compile(compiler="fock").params('')
+params = boson_sampling.compile(compiler="fock").params()
 print(params)
-
+#%%
 loss_sampling = sf.Program(len(U))
 
 with loss_sampling.context as q:
     circuit
     MeasureFock() | q[0]
+
+loss_sampling.compile(compiler="fock").print()
 
 # params_new = loss_sampling.draw_circuit()
 
@@ -76,4 +90,14 @@ with prog.context as q:
     BSgate(0.43, 0.1) | (q[1], q[2])
     MeasureFock() | q
 
+
+#%%
+a = sf.decompositions.rectangular(U)
+boson_sampling.compile(compiler="fock").print()
+print(a)
+
+V_comp = a[1]
+V = np.diag(V_comp)
+
+v = sf.decompositions.rectangular(V)
 
