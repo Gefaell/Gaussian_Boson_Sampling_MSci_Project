@@ -30,7 +30,7 @@ print(deviated_arr)
 U = unitary_group.rvs(4)
 print(U)
 #%%
-A = array([ 0.4045-0.9146j, -0.2741-0.9617j, -0.3038+0.9527j, -0.7141-0.7001j])
+# A = array([ 0.4045-0.9146j, -0.2741-0.9617j, -0.3038+0.9527j, -0.7141-0.7001j])
  
 boson_sampling = sf.Program(4)
 eng = sf.Engine("fock", backend_options={"cutoff_dim": 6})
@@ -92,12 +92,66 @@ with prog.context as q:
 
 
 #%%
+import cmath
+
 a = sf.decompositions.rectangular(U)
 boson_sampling.compile(compiler="fock").print()
-print(a)
+print('T_i = ',a[0])
+print('V =', a[1])
+print('T=', a[2])
 
 V_comp = a[1]
 V = np.diag(V_comp)
 
 v = sf.decompositions.rectangular(V)
 
+r1,phi1 = cmath.polar(V_comp[0])
+print(phi1)
+
+def diag_matrix_rotations(D_comp):
+    '''
+    D_comp == list of matrix diagonal components of diagonal matrix
+    '''
+    angles = []
+    for i in D_comp:
+        _,phi = cmath.polar(i)
+        if phi < 0 :
+            phi = 2*np.pi + phi
+        angles.append(phi )
+    return angles
+
+new_a = [a[0], diag_matrix_rotations(a[1]), a[2] ]
+
+# %%
+
+
+def output_to_circuit(output_b):
+    circuit = []
+    for gate_params in output_b[0]:
+        if len(gate_params) == 5:
+            qubits = (gate_params[0], gate_params[1])
+            angle = gate_params[2]
+            phase_shift = gate_params[3]
+            iterations = gate_params[4]
+            for i in range(iterations):
+                circuit.append(f"BSgate({angle}, {phase_shift}) | (q[{qubits[0]}], q[{qubits[1]}])")
+        else:
+            qubit = gate_params[0]
+            angle = gate_params[1]
+            iterations = gate_params[2]
+            for i in range(iterations):
+                circuit.append(f"Rgate({angle}) | (q[{qubit}])")
+    for i in range(len(output_b[1])):
+        circuit.append(f"Rgate({output_b[1][i]}) | (q[{i}])")
+    for gate_params in output_b[2]:
+        qubits = (gate_params[0], gate_params[1])
+        angle = gate_params[2]
+        phase_shift = gate_params[3]
+        iterations = gate_params[4]
+        for i in range(iterations):
+            circuit.append(f"BSgate({angle}, {phase_shift}) | (q[{qubits[0]}], q[{qubits[1]}])")
+    return circuit
+
+
+cir = output_to_circuit(new_a)
+# %%
