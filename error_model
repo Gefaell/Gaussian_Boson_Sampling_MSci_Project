@@ -4,34 +4,32 @@ from scipy.stats import unitary_group
 import strawberryfields as sf
 from strawberryfields.ops import *
 
-def is_unitary(matrix):
-    conjugate_transpose = matrix.conjugate().transpose()
-    return np.allclose(conjugate_transpose, np.linalg.inv(matrix))
+# def is_unitary(matrix):
+#     conjugate_transpose = matrix.conjugate().transpose()
+#     return np.allclose(conjugate_transpose, np.linalg.inv(matrix))
 
-def apply_random_deviations(matrix, stddev):
-    '''Takes input unitary matrix and applies deviation to each element (real & imaginary
-    based on a normal distribution with input stddev'''
-    if not is_unitary(matrix):
-        raise ValueError("The input matrix is not unitary.")
-    deviation_array = np.random.normal(scale=stddev, size=matrix.shape).astype(complex)
-    deviated_arr = matrix + deviation_array
-    deviation_array_imag = np.random.normal(scale=stddev, size=matrix.shape).astype(complex)
-    return deviated_arr + deviation_array_imag * 1j
+# def apply_random_deviations(matrix, stddev):
+#     '''Takes input unitary matrix and applies deviation to each element (real & imaginary
+#     based on a normal distribution with input stddev'''
+#     if not is_unitary(matrix):
+#         raise ValueError("The input matrix is not unitary.")
+#     deviation_array = np.random.normal(scale=stddev, size=matrix.shape).astype(complex)
+#     deviated_arr = matrix + deviation_array
+#     deviation_array_imag = np.random.normal(scale=stddev, size=matrix.shape).astype(complex)
+#     return deviated_arr + deviation_array_imag * 1j
 
 
-arr = np.array([[1+2j, 3+4j], [5+6j, 7+8j]])
-A = ideal_matrix = unitary_group.rvs(2) #doesn't give symmetric matrix( only unitary)
-print(A)
-deviated_arr = apply_random_deviations(A, 0.1)
+# arr = np.array([[1+2j, 3+4j], [5+6j, 7+8j]])
+# A = ideal_matrix = unitary_group.rvs(2) #doesn't give symmetric matrix( only unitary)
+# print(A)
+# deviated_arr = apply_random_deviations(A, 0.1)
 
-print(deviated_arr)
+# print(deviated_arr)
 #%% 
 
 U = unitary_group.rvs(4)
 print(U)
-#%%
-# A = array([ 0.4045-0.9146j, -0.2741-0.9617j, -0.3038+0.9527j, -0.7141-0.7001j])
- 
+
 boson_sampling = sf.Program(4)
 eng = sf.Engine("fock", backend_options={"cutoff_dim": 6})
 
@@ -39,75 +37,28 @@ with boson_sampling.context as q:
     # prepare the input fock states
     Fock(1) | q[0]
     Fock(1) | q[1]
-    Vac     | q[2]
+    Fock(1) | q[2]
     Fock(1) | q[3]
-
     Interferometer(U) | q
 
-boson_sampling.compile(compiler="fock")
-c = boson_sampling.circuit
-f = boson_sampling.free_params
-print(c)
-for i in c:
-    print(i)
-
-
-#%%
-
-boson_sampling.compile(compiler="fock").print()
-
-
-circuit = boson_sampling.compile(compiler = 'fock')
-
-
-#%%
-
-params = boson_sampling.compile(compiler="fock").params()
-print(params)
-#%%
-loss_sampling = sf.Program(len(U))
-
-with loss_sampling.context as q:
-    circuit
-    MeasureFock() | q[0]
-
-loss_sampling.compile(compiler="fock").print()
-
-# params_new = loss_sampling.draw_circuit()
-
-results = eng.run(loss_sampling)
-# print(results.samples[0][0])
-
-#%%
-
-prog = sf.Program(3)
-
-with prog.context as q:
-    Sgate(0.54) | q[0]
-    Sgate(0.54) | q[1]
-    Sgate(0.54) | q[2]
-    BSgate(0.43, 0.1) | (q[0], q[2])
-    BSgate(0.43, 0.1) | (q[1], q[2])
-    MeasureFock() | q
-
-
-#%%
+#%% Continue here
 import cmath
 
-a = sf.decompositions.rectangular(U)
+
+a = sf.decompositions.rectangular(U) #decompose unitary U into BS,Rgates, diagonal V in centre
 boson_sampling.compile(compiler="fock").print()
+
 print('T_i = ',a[0])
 print('V =', a[1])
 print('T=', a[2])
 
 V_comp = a[1]
-V = np.diag(V_comp)
 
-v = sf.decompositions.rectangular(V)
-
-r1,phi1 = cmath.polar(V_comp[0])
-print(phi1)
-
+r1,phi1 = cmath.polar(V_comp[2]) #express V components from complex number to polar angle
+#r component is always 1 for these, so only need angle to put to exponential. That exponential
+#is the Rgate angle
+print(phi1)# so this would be Rgate(phi1) | q[0]
+#%%%
 def diag_matrix_rotations(D_comp):
     '''
     D_comp == list of matrix diagonal components of diagonal matrix
@@ -120,38 +71,30 @@ def diag_matrix_rotations(D_comp):
         angles.append(phi )
     return angles
 
-new_a = [a[0], diag_matrix_rotations(a[1]), a[2] ]
+new_a = [a[0], diag_matrix_rotations(a[1]), a[2] ] # won't need this
+T = a[0]
+V = diag_matrix_rotations(a[1])
+T_dash = a[2]
 
-# %%
+# %% build circuit out of new_a
 
+N = T[0][-1] #number of modes
+noisy = sf.Program(N)
+eng = sf.Engine("fock", backend_options={"cutoff_dim": 6})
 
-def output_to_circuit(output_b):
-    circuit = []
-    for gate_params in output_b[0]:
-        if len(gate_params) == 5:
-            qubits = (gate_params[0], gate_params[1])
-            angle = gate_params[2]
-            phase_shift = gate_params[3]
-            iterations = gate_params[4]
-            for i in range(iterations):
-                circuit.append(f"BSgate({angle}, {phase_shift}) | (q[{qubits[0]}], q[{qubits[1]}])")
-        else:
-            qubit = gate_params[0]
-            angle = gate_params[1]
-            iterations = gate_params[2]
-            for i in range(iterations):
-                circuit.append(f"Rgate({angle}) | (q[{qubit}])")
-    for i in range(len(output_b[1])):
-        circuit.append(f"Rgate({output_b[1][i]}) | (q[{i}])")
-    for gate_params in output_b[2]:
-        qubits = (gate_params[0], gate_params[1])
-        angle = gate_params[2]
-        phase_shift = gate_params[3]
-        iterations = gate_params[4]
-        for i in range(iterations):
-            circuit.append(f"BSgate({angle}, {phase_shift}) | (q[{qubits[0]}], q[{qubits[1]}])")
-    return circuit
+with noisy.context as q:
+    for i in range(N):
+        Fock(1) | q[i]
+    for row in T: #j is a row in T
+        Rgate(row[3]) | q[row[0]]
+        BSgate(row[2], 0) | (q[row[0]], q[row[1]])
+    for j in range(len(V)):
+        Rgate(V[j]) | q[j]
+    for row in reversed(T_dash): #take the last row first
+        BSgate(-row[2],0) | (q[row[0]], q[row[1]])
+        Rgate(-row[3]) | q[row[0]]
+
+noisy.compile(compiler="fock").print()
 
 
-cir = output_to_circuit(new_a)
 # %%
